@@ -32,35 +32,45 @@ class TrackingHooks(RunHooksBase[Any, Agent[Any]]):
     async def on_agent_start(
         self, context: AgentHookContext[Any], agent: Agent[Any]
     ) -> None:
-        parent_id = self._current_run_id
-        handoff_from = None
-        if self._run_stack:
-            handoff_from = self._run_stack[-1]
+        try:
+            parent_id = self._current_run_id
+            handoff_from = None
+            if self._run_stack:
+                handoff_from = self._run_stack[-1]
 
-        model_name = (
-            getattr(agent.model, "_model_name", None)
-            or (str(agent.model) if agent.model else "unknown")
-        )
-        output_type = (
-            agent.output_type.__name__
-            if agent.output_type is not None and agent.output_type is not str
-            else None
-        )
+            model_name = (
+                getattr(agent.model, "_model_name", None)
+                or (str(agent.model) if agent.model else "unknown")
+            )
+            structured_name = None
+            if agent.output_type is not None and agent.output_type is not str:
+                try:
+                    structured_name = (
+                        agent.output_type.__name__
+                        if isinstance(agent.output_type, type)
+                        else agent.output_type.name
+                    )
+                    if callable(structured_name):
+                        structured_name = structured_name()
+                except Exception:
+                    structured_name = None
 
-        run = AgentRun(
-            agent_name=agent.name,
-            model=model_name,
-            parent_run_id=parent_id,
-            handoff_from_agent=handoff_from,
-            structured_output_type=output_type,
-            started_at=_now(),
-        )
-        self._store.record_run_start(run)
+            run = AgentRun(
+                agent_name=agent.name,
+                model=model_name,
+                parent_run_id=parent_id,
+                handoff_from_agent=handoff_from,
+                structured_output_type=structured_name,
+                started_at=_now(),
+            )
+            self._store.record_run_start(run)
 
-        self._run_stack.append(agent.name)
-        self._current_run_id = run.id
-        self._tokens_by_run[run.id] = {"input": 0, "output": 0, "total": 0, "input_cost": 0.0, "output_cost": 0.0}
-        self._turn_count_by_run[run.id] = 0
+            self._run_stack.append(agent.name)
+            self._current_run_id = run.id
+            self._tokens_by_run[run.id] = {"input": 0, "output": 0, "total": 0, "input_cost": 0.0, "output_cost": 0.0}
+            self._turn_count_by_run[run.id] = 0
+        except Exception:
+            pass
 
     async def on_agent_end(
         self,
