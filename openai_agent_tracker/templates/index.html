@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Tracker</title>
+<link rel="stylesheet" href="{{ root }}/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Agent <span>Tracker</span></h1>
+    <nav>
+      <a href="{{ root }}/" class="active">Dashboard</a>
+      <a href="{{ root }}/runs">Runs</a>
+    </nav>
+  </header>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Total Runs</div>
+      <div class="value">{{ stats.total_runs }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Today</div>
+      <div class="value">{{ stats.today_runs }}</div>
+      <div class="sub">{{ stats.unique_agents }} agents</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Tokens</div>
+      <div class="value">{{ "{:,.0f}".format(stats.total_tokens) }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Avg Latency</div>
+      <div class="value">{{ "{:,.0f}".format(stats.avg_latency_ms) }}ms</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Error Rate</div>
+      <div class="value" style="color: {% if stats.error_rate > 10 %}var(--red){% else %}var(--green){% endif %}">
+        {{ stats.error_rate }}%
+      </div>
+      <div class="sub">{{ stats.error_count }} errors</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Cost</div>
+      <div class="value" style="font-size:18px;">${{ "{:,.4f}".format(stats.total_cost) }}</div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-box">
+      <h3>Latency (last {{ latencies|length }} runs)</h3>
+      <canvas id="latencyChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Token Usage (last {{ token_data|length }} runs)</h3>
+      <canvas id="tokenChart"></canvas>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="chart-box">
+      <h3>Tool Usage</h3>
+      <canvas id="toolChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Cost per Run (last {{ cost_data|length }})</h3>
+      <canvas id="costChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Hourly Activity (24h)</h3>
+      <canvas id="hourlyChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>Agents</h2>
+      <span style="font-size:12px;color:var(--text-dim);">{{ agents|length }} agents</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Agent</th>
+          <th>Runs</th>
+          <th>Total Tokens</th>
+          <th>Total Cost</th>
+          <th>Avg Latency</th>
+          <th>Avg Turns</th>
+          <th>Errors</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in agents %}
+        <tr>
+          <td><a href="{{ root }}/runs?agent={{ a.agent_name }}">{{ a.agent_name }}</a></td>
+          <td>{{ a.total_runs }}</td>
+          <td>{{ "{:,.0f}".format(a.total_tokens) }}</td>
+          <td>${{ "{:,.4f}".format(a.total_cost) }}</td>
+          <td>{{ "{:,.0f}".format(a.avg_latency_ms) }}ms</td>
+          <td>{{ "{:,.1f}".format(a.avg_turns) }}</td>
+          <td>{% if a.error_count > 0 %}<span class="badge err">{{ a.error_count }}</span>{% else %}<span class="badge ok">0</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        {% if not agents %}
+        <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px;">No runs yet. Send a message to the bot.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>Recent Runs</h2>
+      <a href="{{ root }}/runs" style="font-size:12px;color:var(--accent);text-decoration:none;">View all →</a>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Agent</th>
+          <th>Model</th>
+          <th>Tokens</th>
+          <th>Cost</th>
+          <th>Latency</th>
+          <th>Turns</th>
+          <th>Status</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in runs %}
+        <tr>
+          <td><a href="{{ root }}/run/{{ run.id }}">{{ run.agent_name }}</a></td>
+          <td style="font-size:12px;color:var(--text-dim);">{{ run.model[:30] }}</td>
+          <td>{{ "{:,.0f}".format(run.total_tokens) }}</td>
+          <td>${{ "{:,.4f}".format(run.total_cost) }}</td>
+          <td>{{ "{:,.0f}".format(run.latency_ms) }}ms</td>
+          <td>{{ run.turn_count }}</td>
+          <td>{% if run.error %}<span class="badge err">Error</span>{% else %}<span class="badge ok">OK</span>{% endif %}</td>
+          <td style="font-size:12px;color:var(--text-dim);">{{ run.started_at[:19] if run.started_at else "" }}</td>
+        </tr>
+        {% endfor %}
+        {% if not runs %}
+        <tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:40px;">No runs tracked yet.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const latCtx = document.getElementById('latencyChart')?.getContext('2d');
+if (latCtx) {
+  const latData = {{ latencies_json | safe }};
+  new Chart(latCtx, {
+    type: 'bar',
+    data: {
+      labels: latData.map((_, i) => i + 1),
+      datasets: [{
+        label: 'Latency (ms)',
+        data: latData.map(d => d.latency_ms),
+        backgroundColor: latData.map(d => d.is_error ? 'rgba(255,107,107,0.5)' : 'rgba(108,92,231,0.5)'),
+        borderColor: latData.map(d => d.is_error ? 'rgb(255,107,107)' : 'rgb(108,92,231)'),
+        borderWidth: 1,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8a8a9a' } }
+      }
+    }
+  });
+}
+
+const tokCtx = document.getElementById('tokenChart')?.getContext('2d');
+if (tokCtx) {
+  const tokData = {{ token_data_json | safe }};
+  new Chart(tokCtx, {
+    type: 'bar',
+    data: {
+      labels: tokData.map((_, i) => i + 1),
+      datasets: [
+        { label: 'Input', data: tokData.map(d => d.input_tokens), backgroundColor: 'rgba(108,92,231,0.6)', borderRadius: 3 },
+        { label: 'Output', data: tokData.map(d => d.output_tokens), backgroundColor: 'rgba(0,206,201,0.6)', borderRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#8a8a9a', boxWidth: 12, padding: 8 } } },
+      scales: {
+        x: { display: false },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8a8a9a' } }
+      }
+    }
+  });
+}
+
+const toolCtx = document.getElementById('toolChart')?.getContext('2d');
+if (toolCtx) {
+  const toolData = {{ tool_data_json | safe }};
+  new Chart(toolCtx, {
+    type: 'doughnut',
+    data: {
+      labels: toolData.map(d => d.tool_name),
+      datasets: [{
+        data: toolData.map(d => d.count),
+        backgroundColor: ['rgba(108,92,231,0.7)', 'rgba(0,206,201,0.7)', 'rgba(253,203,110,0.7)', 'rgba(255,107,107,0.7)', 'rgba(162,155,254,0.7)'],
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#8a8a9a', boxWidth: 12, padding: 6, font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+const costCtx = document.getElementById('costChart')?.getContext('2d');
+if (costCtx) {
+  const costData = {{ cost_data_json | safe }};
+  new Chart(costCtx, {
+    type: 'bar',
+    data: {
+      labels: costData.map((_, i) => i + 1),
+      datasets: [
+        { label: 'Input', data: costData.map(d => d.input_cost), backgroundColor: 'rgba(108,92,231,0.6)', borderRadius: 3 },
+        { label: 'Output', data: costData.map(d => d.output_cost), backgroundColor: 'rgba(0,206,201,0.6)', borderRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8a8a9a', boxWidth: 12, padding: 8 } },
+        tooltip: { callbacks: { label: ctx => '$' + ctx.parsed.y.toFixed(6) } }
+      },
+      scales: {
+        x: { display: false },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8a8a9a', callback: v => '$' + v.toFixed(6) } }
+      }
+    }
+  });
+}
+
+const hrCtx = document.getElementById('hourlyChart')?.getContext('2d');
+if (hrCtx) {
+  const hrData = {{ hourly_data_json | safe }};
+  new Chart(hrCtx, {
+    type: 'line',
+    data: {
+      labels: hrData.map(d => d.hour_slot),
+      datasets: [{
+        label: 'Runs',
+        data: hrData.map(d => d.count),
+        borderColor: '#6c5ce7',
+        backgroundColor: 'rgba(108,92,231,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#8a8a9a', boxWidth: 12, padding: 8 } } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8a8a9a', font: { size: 10 } } },
+        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#8a8a9a' } }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>

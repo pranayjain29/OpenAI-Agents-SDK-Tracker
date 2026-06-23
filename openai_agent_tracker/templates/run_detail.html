@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Run Detail — {{ run.agent_name }}</title>
+<link rel="stylesheet" href="{{ root }}/static/style.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Run <span>Detail</span></h1>
+    <nav>
+      <a href="{{ root }}/">Dashboard</a>
+      <a href="{{ root }}/runs">Runs</a>
+      <a href="{{ root }}/run/{{ run.id }}" class="active">{{ run.agent_name }}</a>
+    </nav>
+  </header>
+
+  <div class="run-meta">
+    <div class="meta-item">
+      <div class="label">Agent</div>
+      <div class="val">{{ run.agent_name }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Model</div>
+      <div class="val" style="font-size:13px;">{{ run.model }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Status</div>
+      <div class="val">{% if run.error %}<span class="badge err">Error</span>{% else %}<span class="badge ok">OK</span>{% endif %}</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Total Tokens</div>
+      <div class="val">{{ "{:,.0f}".format(run.total_tokens) }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Total Cost</div>
+      <div class="val">${{ "{:,.6f}".format(run.total_cost) }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Latency</div>
+      <div class="val">{{ "{:,.0f}".format(run.latency_ms) }}ms</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Turns</div>
+      <div class="val">{{ run.turn_count }}</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Started</div>
+      <div class="val" style="font-size:12px;">{{ run.started_at[:19] if run.started_at else "—" }}</div>
+    </div>
+    {% if run.structured_output_type %}
+    <div class="meta-item">
+      <div class="label">Output Type</div>
+      <div class="val" style="font-size:12px;">{{ run.structured_output_type }}</div>
+    </div>
+    {% endif %}
+    {% if run.handoff_from_agent %}
+    <div class="meta-item">
+      <div class="label">Handoff From</div>
+      <div class="val" style="font-size:13px;color:var(--amber);">{{ run.handoff_from_agent }}</div>
+    </div>
+    {% endif %}
+    {% if run.parent_run_id %}
+    <div class="meta-item">
+      <div class="label">Parent Run</div>
+      <div class="val" style="font-size:12px;"><a href="{{ root }}/run/{{ run.parent_run_id }}" style="color:var(--accent);">view parent →</a></div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if run.error %}
+  <div class="card" style="border-color:rgba(255,107,107,0.3);">
+    <div class="card-header">
+      <h2 style="color:var(--red);">Error</h2>
+    </div>
+    <div style="padding:16px 20px;">
+      <div class="pre-wrap">{{ run.error }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if handoffs %}
+  <div class="section-title">Handoffs</div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>From</th><th>To</th><th>Time</th></tr>
+      </thead>
+      <tbody>
+        {% for h in handoffs %}
+        <tr>
+          <td>{{ h.from_agent }}</td>
+          <td>→ {{ h.to_agent }}</td>
+          <td style="font-size:12px;color:var(--text-dim);">{{ h.timestamp[:19] if h.timestamp else "" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if tool_calls %}
+  <div class="section-title">Tool Calls ({{ tool_calls|length }})</div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Tool</th><th>Arguments</th><th>Result</th><th>Latency</th></tr>
+      </thead>
+      <tbody>
+        {% for tc in tool_calls %}
+        <tr>
+          <td><strong>{{ tc.tool_name }}</strong></td>
+          <td style="font-size:12px;color:var(--text-dim);max-width:300px;overflow:hidden;text-overflow:ellipsis;">{{ tc.arguments[:200] }}</td>
+          <td style="font-size:12px;color:var(--text-dim);max-width:300px;overflow:hidden;text-overflow:ellipsis;">{{ tc.result[:200] if tc.result else "" }}</td>
+          <td>{{ "{:,.0f}".format(tc.latency_ms) }}ms</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if llm_calls %}
+  <div class="section-title">LLM Calls ({{ llm_calls|length }})</div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Model</th><th>Input</th><th>Output</th><th>Total</th><th>Input $</th><th>Output $</th><th>Total $</th></tr>
+      </thead>
+      <tbody>
+        {% for lc in llm_calls %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td style="font-size:12px;color:var(--text-dim);">{{ lc.model[:40] }}</td>
+          <td>{{ "{:,.0f}".format(lc.input_tokens) }}</td>
+          <td>{{ "{:,.0f}".format(lc.output_tokens) }}</td>
+          <td>{{ "{:,.0f}".format(lc.total_tokens) }}</td>
+          <td style="font-size:12px;">${{ "{:,.6f}".format(lc.input_cost) }}</td>
+          <td style="font-size:12px;">${{ "{:,.6f}".format(lc.output_cost) }}</td>
+          <td style="font-size:12px;">${{ "{:,.6f}".format(lc.total_cost) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if not llm_calls and not tool_calls and not handoffs and not run.error %}
+  <div style="text-align:center;padding:60px;color:var(--text-dim);">
+    No detailed data for this run yet.
+  </div>
+  {% endif %}
+
+  <div style="margin-top:24px;text-align:center;">
+    <a href="{{ root }}/" style="color:var(--accent);font-size:13px;text-decoration:none;">← Back to Dashboard</a>
+  </div>
+</div>
+</body>
+</html>
