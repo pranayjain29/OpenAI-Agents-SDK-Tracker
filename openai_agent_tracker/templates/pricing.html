@@ -38,10 +38,10 @@
         <tr class="pricing-row" data-model="{{ m.model_name }}">
           <td><code>{{ m.model_name }}</code></td>
           <td>
-            <input type="text" class="price-input" value="{{ "%.9f"|format(m.input_price) }}" step="any">
+            <input type="text" class="price-input pi-input" value="{{ "%.9f"|format(m.input_price) }}" step="any">
           </td>
           <td>
-            <input type="text" class="price-input" value="{{ "%.9f"|format(m.output_price) }}" step="any">
+            <input type="text" class="price-input po-input" value="{{ "%.9f"|format(m.output_price) }}" step="any">
           </td>
           <td>
             {% if m.source == "built-in" %}
@@ -97,43 +97,61 @@
 const root = "{{ root }}";
 
 function saveRow(btn) {
-  const row = btn.closest("tr");
-  const model = row.dataset.model;
-  const inputPrice = row.querySelector("td:nth-child(2) input").value;
-  const outputPrice = row.querySelector("td:nth-child(3) input").value;
-  if (!inputPrice || !outputPrice) return alert("Both prices required");
-  fetch(root + "/api/pricing", {
+  const row = btn.closest("tr.pricing-row");
+  if (!row) { alert("Could not find pricing row"); return; }
+  const model = row.getAttribute("data-model");
+  const inp = row.querySelector(".pi-input");
+  const outp = row.querySelector(".po-input");
+  if (!inp || !outp) { alert("Could not find price inputs"); return; }
+  const inputPrice = inp.value.trim();
+  const outputPrice = outp.value.trim();
+  if (inputPrice === "" || outputPrice === "") { alert("Both prices required"); return; }
+  const url = (root || "") + "/api/pricing";
+  fetch(url, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({model_name: model, input_price: inputPrice, output_price: outputPrice}),
-  }).then(r => r.json()).then(d => {
-    if (d.ok) location.reload();
-  }).catch(e => alert("Error: " + e));
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d && d.ok) { location.reload(); }
+    else { alert("Save failed: unexpected response"); }
+  })
+  .catch(function(e) { alert("Save error: " + e.message); });
 }
 
 function deleteRow(btn) {
-  const row = btn.closest("tr");
-  const model = row.dataset.model;
+  const row = btn.closest("tr.pricing-row");
+  if (!row) return;
+  const model = row.getAttribute("data-model");
   if (!confirm("Reset pricing for " + model + "?")) return;
-  fetch(root + "/api/pricing/" + encodeURIComponent(model), {
-    method: "DELETE",
-  }).then(r => r.json()).then(d => {
-    if (d.ok) location.reload();
-  }).catch(e => alert("Error: " + e));
+  const url = (root || "") + "/api/pricing/" + encodeURIComponent(model);
+  fetch(url, { method: "DELETE" })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d && d.ok) { location.reload(); }
+    else { alert("Reset failed: unexpected response"); }
+  })
+  .catch(function(e) { alert("Reset error: " + e.message); });
 }
 
 function addModel() {
   const model = document.getElementById("new-model").value.trim();
   const inputPrice = document.getElementById("new-input").value.trim();
   const outputPrice = document.getElementById("new-output").value.trim();
-  if (!model || !inputPrice || !outputPrice) return alert("All fields required");
-  fetch(root + "/api/pricing", {
+  if (model === "" || inputPrice === "" || outputPrice === "") { alert("All fields required"); return; }
+  const url = (root || "") + "/api/pricing";
+  fetch(url, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({model_name: model, input_price: inputPrice, output_price: outputPrice}),
-  }).then(r => r.json()).then(d => {
-    if (d.ok) location.reload();
-  }).catch(e => alert("Error: " + e));
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d && d.ok) { location.reload(); }
+    else { alert("Add failed: unexpected response"); }
+  })
+  .catch(function(e) { alert("Add error: " + e.message); });
 }
 </script>
 </body>
