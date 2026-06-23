@@ -32,6 +32,7 @@ class TrackerStore:
     def get_hourly_runs(self, hours: int = 24) -> list[dict[str, Any]]: ...
     def get_tool_usage_stats(self) -> list[dict[str, Any]]: ...
     def compute_cost(self, model_name: str, input_tokens: int, output_tokens: int) -> tuple[float, float]: ...
+    def recalculate_costs(self) -> None: ...
     def get_effective_pricing(self) -> list[dict[str, Any]]: ...
     def upsert_pricing(self, model_name: str, input_price: float, output_price: float) -> None: ...
     def delete_pricing(self, model_name: str) -> None: ...
@@ -404,6 +405,30 @@ class SQLiteStore(TrackerStore):
             return (0.0, 0.0)
         return (input_tokens * pricing["input"], output_tokens * pricing["output"])
 
+    def recalculate_costs(self) -> None:
+        with self._connect() as conn:
+            calls = conn.execute(
+                "SELECT id, model, input_tokens, output_tokens FROM llm_calls"
+            ).fetchall()
+            for c in calls:
+                inp_cost, out_cost = self.compute_cost(c["model"], c["input_tokens"], c["output_tokens"])
+                total_cost = inp_cost + out_cost
+                conn.execute(
+                    "UPDATE llm_calls SET input_cost=?, output_cost=?, total_cost=? WHERE id=?",
+                    (inp_cost, out_cost, total_cost, c["id"]),
+                )
+            run_ids = conn.execute("SELECT DISTINCT run_id FROM llm_calls").fetchall()
+            for r in run_ids:
+                agg = conn.execute(
+                    """SELECT COALESCE(SUM(input_cost),0), COALESCE(SUM(output_cost),0),
+                              COALESCE(SUM(total_cost),0) FROM llm_calls WHERE run_id=?""",
+                    (r["run_id"],),
+                ).fetchone()
+                conn.execute(
+                    "UPDATE agent_runs SET input_cost=?, output_cost=?, total_cost=? WHERE id=?",
+                    (agg[0], agg[1], agg[2], r["run_id"]),
+                )
+
     def get_effective_pricing(self) -> list[dict[str, Any]]:
         with self._connect() as conn:
             used_rows = conn.execute("""
@@ -445,7 +470,9 @@ class SQLiteStore(TrackerStore):
                 "INSERT OR REPLACE INTO model_pricing (model_name, input_price, output_price) VALUES (?, ?, ?)",
                 (model_name, input_price, output_price),
             )
+        self.recalculate_costs()
 
     def delete_pricing(self, model_name: str) -> None:
         with self._connect() as conn:
             conn.execute("DELETE FROM model_pricing WHERE model_name=?", (model_name,))
+        self.recalculate_costs()
