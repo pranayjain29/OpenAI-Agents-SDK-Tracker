@@ -9,7 +9,7 @@ from agents.lifecycle import (
 )
 from agents.items import TResponseInputItem
 
-from openai_agent_tracker.models import AgentRun, HandoffRecord, LLMCall, ToolCall, compute_cost
+from openai_agent_tracker.models import AgentRun, HandoffRecord, LLMCall, ToolCall
 from openai_agent_tracker.store import TrackerStore
 
 
@@ -40,6 +40,7 @@ class TrackingHooks(RunHooksBase[Any, Agent[Any]]):
 
             model_name = (
                 getattr(agent.model, "_model_name", None)
+                or getattr(agent.model, "model", None)
                 or (str(agent.model) if agent.model else "unknown")
             )
             structured_name = None
@@ -132,12 +133,13 @@ class TrackingHooks(RunHooksBase[Any, Agent[Any]]):
         rid = self._current_run_id
         model_name = (
             getattr(agent.model, "_model_name", None)
+            or getattr(agent.model, "model", None)
             or (str(agent.model) if agent.model else "unknown")
         )
         inp = response.usage.input_tokens if response.usage else 0
         out = response.usage.output_tokens if response.usage else 0
         total = response.usage.total_tokens if response.usage else 0
-        inp_cost, out_cost = compute_cost(model_name, inp, out)
+        inp_cost, out_cost = self._store.compute_cost(model_name, inp, out)
 
         if rid in self._tokens_by_run:
             self._tokens_by_run[rid]["input"] += inp

@@ -2,7 +2,7 @@ import json
 import os
 
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -27,6 +27,31 @@ def create_dashboard_app(
         StaticFiles(directory=static_dir or os.path.join(HERE, "static")),
         name="tracking_static",
     )
+
+    @app.get("/pricing", response_class=HTMLResponse)
+    async def pricing_page(request: Request):
+        root = request.scope.get("root_path", "")
+        pricing = store.get_effective_pricing()
+        return templates.TemplateResponse(
+            request=request,
+            name="pricing.html",
+            context={"root": root, "pricing": pricing},
+        )
+
+    @app.post("/api/pricing")
+    async def upsert_pricing(request: Request):
+        body = await request.json()
+        store.upsert_pricing(
+            model_name=body["model_name"],
+            input_price=float(body["input_price"]),
+            output_price=float(body["output_price"]),
+        )
+        return JSONResponse({"ok": True})
+
+    @app.delete("/api/pricing/{model_name}")
+    async def delete_pricing(model_name: str):
+        store.delete_pricing(model_name)
+        return JSONResponse({"ok": True})
 
     @app.get("/", response_class=HTMLResponse)
     async def dashboard(request: Request):

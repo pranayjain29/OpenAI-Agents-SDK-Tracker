@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pricing — Agent Tracker</title>
+<link rel="stylesheet" href="{{ root }}/static/style.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Model <span>Pricing</span></h1>
+    <nav>
+      <a href="{{ root }}/">Dashboard</a>
+      <a href="{{ root }}/runs">Runs</a>
+      <a href="{{ root }}/pricing" class="active">Pricing</a>
+    </nav>
+  </header>
+
+  <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">
+    Pricing is per token (USD). Overrides are saved to the database.
+    Models used in runs without pricing appear as "Unpriced".
+  </p>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Input $/token</th>
+          <th>Output $/token</th>
+          <th>Source</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in pricing %}
+        <tr class="pricing-row" data-model="{{ m.model_name }}">
+          <td><code>{{ m.model_name }}</code></td>
+          <td>
+            <input type="text" class="price-input" value="{{ "%.9f"|format(m.input_price) }}" step="any">
+          </td>
+          <td>
+            <input type="text" class="price-input" value="{{ "%.9f"|format(m.output_price) }}" step="any">
+          </td>
+          <td>
+            {% if m.source == "built-in" %}
+              <span class="badge" style="background:rgba(108,92,231,0.12);color:var(--accent);">Built-in</span>
+            {% elif m.source == "override" %}
+              <span class="badge" style="background:rgba(0,206,201,0.12);color:var(--green);">Override</span>
+            {% elif m.source == "custom" %}
+              <span class="badge" style="background:rgba(253,203,110,0.12);color:var(--amber);">Custom</span>
+            {% else %}
+              <span class="badge" style="background:rgba(255,107,107,0.12);color:var(--red);">Unpriced</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-save" onclick="saveRow(this)">Save</button>
+            {% if m.source == "override" or m.source == "custom" %}
+            <button class="btn btn-delete" onclick="deleteRow(this)">Reset</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not pricing %}
+        <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:40px;">No pricing data yet.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="padding:20px;">
+    <h3 style="font-size:14px;margin-bottom:12px;">Add Model</h3>
+    <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+      <div>
+        <div class="label" style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Model Name</div>
+        <input type="text" id="new-model" class="price-input" placeholder="e.g. gpt-4o" style="width:220px;">
+      </div>
+      <div>
+        <div class="label" style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Input Price</div>
+        <input type="text" id="new-input" class="price-input" placeholder="0.00000250" style="width:120px;">
+      </div>
+      <div>
+        <div class="label" style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Output Price</div>
+        <input type="text" id="new-output" class="price-input" placeholder="0.00001000" style="width:120px;">
+      </div>
+      <button class="btn btn-save" onclick="addModel()">Add</button>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;text-align:center;">
+    <a href="{{ root }}/" style="color:var(--accent);font-size:13px;text-decoration:none;">← Back to Dashboard</a>
+  </div>
+</div>
+
+<script>
+const root = "{{ root }}";
+
+function saveRow(btn) {
+  const row = btn.closest("tr");
+  const model = row.dataset.model;
+  const inputPrice = row.querySelector("td:nth-child(2) input").value;
+  const outputPrice = row.querySelector("td:nth-child(3) input").value;
+  if (!inputPrice || !outputPrice) return alert("Both prices required");
+  fetch(root + "/api/pricing", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({model_name: model, input_price: inputPrice, output_price: outputPrice}),
+  }).then(r => r.json()).then(d => {
+    if (d.ok) location.reload();
+  }).catch(e => alert("Error: " + e));
+}
+
+function deleteRow(btn) {
+  const row = btn.closest("tr");
+  const model = row.dataset.model;
+  if (!confirm("Reset pricing for " + model + "?")) return;
+  fetch(root + "/api/pricing/" + encodeURIComponent(model), {
+    method: "DELETE",
+  }).then(r => r.json()).then(d => {
+    if (d.ok) location.reload();
+  }).catch(e => alert("Error: " + e));
+}
+
+function addModel() {
+  const model = document.getElementById("new-model").value.trim();
+  const inputPrice = document.getElementById("new-input").value.trim();
+  const outputPrice = document.getElementById("new-output").value.trim();
+  if (!model || !inputPrice || !outputPrice) return alert("All fields required");
+  fetch(root + "/api/pricing", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({model_name: model, input_price: inputPrice, output_price: outputPrice}),
+  }).then(r => r.json()).then(d => {
+    if (d.ok) location.reload();
+  }).catch(e => alert("Error: " + e));
+}
+</script>
+</body>
+</html>

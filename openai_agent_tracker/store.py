@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from openai_agent_tracker.models import AgentRun, HandoffRecord, LLMCall, ToolCall
+from openai_agent_tracker.models import MODEL_PRICING, AgentRun, HandoffRecord, LLMCall, ToolCall
 
 
 def _now() -> str:
@@ -31,6 +31,10 @@ class TrackerStore:
     def get_token_usage_over_time(self, limit: int = 100) -> list[dict[str, Any]]: ...
     def get_hourly_runs(self, hours: int = 24) -> list[dict[str, Any]]: ...
     def get_tool_usage_stats(self) -> list[dict[str, Any]]: ...
+    def compute_cost(self, model_name: str, input_tokens: int, output_tokens: int) -> tuple[float, float]: ...
+    def get_effective_pricing(self) -> list[dict[str, Any]]: ...
+    def upsert_pricing(self, model_name: str, input_price: float, output_price: float) -> None: ...
+    def delete_pricing(self, model_name: str) -> None: ...
 
 
 class SQLiteStore(TrackerStore):
@@ -105,6 +109,11 @@ class SQLiteStore(TrackerStore):
                 CREATE INDEX IF NOT EXISTS idx_handoff_run ON handoffs(run_id);
                 CREATE INDEX IF NOT EXISTS idx_runs_agent ON agent_runs(agent_name);
                 CREATE INDEX IF NOT EXISTS idx_runs_started ON agent_runs(started_at);
+                CREATE TABLE IF NOT EXISTS model_pricing (
+                    model_name TEXT PRIMARY KEY,
+                    input_price REAL NOT NULL,
+                    output_price REAL NOT NULL
+                );
             """)
             for table, cols in [
                 ("agent_runs", ["input_cost", "output_cost", "total_cost"]),
@@ -381,3 +390,62 @@ class SQLiteStore(TrackerStore):
                 ORDER BY count DESC
             """).fetchall()
             return [dict(r) for r in rows]
+
+    def compute_cost(self, model_name: str, input_tokens: int, output_tokens: int) -> tuple[float, float]:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT input_price, output_price FROM model_pricing WHERE model_name=?",
+                (model_name,),
+            ).fetchone()
+            if row:
+                return (input_tokens * row["input_price"], output_tokens * row["output_price"])
+        pricing = MODEL_PRICING.get(model_name)
+        if not pricing:
+            return (0.0, 0.0)
+        return (input_tokens * pricing["input"], output_tokens * pricing["output"])
+
+    def get_effective_pricing(self) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            used_rows = conn.execute("""
+                SELECT DISTINCT model FROM (
+                    SELECT model FROM agent_runs WHERE model != '' AND model IS NOT NULL
+                    UNION
+                    SELECT model FROM llm_calls WHERE model != '' AND model IS NOT NULL
+                )
+            """).fetchall()
+            used = {r["model"] for r in used_rows}
+            overrides = conn.execute(
+                "SELECT model_name, input_price, output_price FROM model_pricing"
+            ).fetchall()
+            override_dict = {r["model_name"]: dict(r) for r in overrides}
+            result = []
+            seen = set()
+            for model, prices in MODEL_PRICING.items():
+                seen.add(model)
+                if model in override_dict:
+                    row = override_dict[model]
+                    row["source"] = "override"
+                else:
+                    row = {"model_name": model, "input_price": prices["input"], "output_price": prices["output"], "source": "built-in"}
+                result.append(row)
+            for model, row in override_dict.items():
+                if model not in seen:
+                    seen.add(model)
+                    row["source"] = "custom"
+                    result.append(row)
+            for model in sorted(used):
+                if model not in seen:
+                    seen.add(model)
+                    result.append({"model_name": model, "input_price": 0, "output_price": 0, "source": "unpriced"})
+            return result
+
+    def upsert_pricing(self, model_name: str, input_price: float, output_price: float) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO model_pricing (model_name, input_price, output_price) VALUES (?, ?, ?)",
+                (model_name, input_price, output_price),
+            )
+
+    def delete_pricing(self, model_name: str) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM model_pricing WHERE model_name=?", (model_name,))
