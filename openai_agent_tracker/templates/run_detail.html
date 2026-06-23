@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Run Detail — {{ run.agent_name }}</title>
+<title>Run — {{ run.agent_name }} — Agent Tracker</title>
 <link rel="stylesheet" href="{{ root }}/static/style.css">
 </head>
 <body>
 <div class="app">
   <header>
-    <h1>Run <span>Detail</span></h1>
+    <h1><span>✦</span> Run Detail</h1>
     <nav>
       <a href="{{ root }}/">Dashboard</a>
       <a href="{{ root }}/runs">Runs</a>
@@ -49,12 +49,12 @@
     </div>
     <div class="meta-item">
       <div class="label">Started</div>
-      <div class="val" style="font-size:12px;">{{ run.started_at[:19] if run.started_at else "—" }}</div>
+      <div class="val" style="font-size:12.5px;">{{ run.started_at[:19] if run.started_at else "—" }}</div>
     </div>
     {% if run.structured_output_type %}
     <div class="meta-item">
       <div class="label">Output Type</div>
-      <div class="val" style="font-size:12px;">{{ run.structured_output_type }}</div>
+      <div class="val" style="font-size:12.5px;">{{ run.structured_output_type }}</div>
     </div>
     {% endif %}
     {% if run.handoff_from_agent %}
@@ -66,17 +66,17 @@
     {% if run.parent_run_id %}
     <div class="meta-item">
       <div class="label">Parent Run</div>
-      <div class="val" style="font-size:12px;"><a href="{{ root }}/run/{{ run.parent_run_id }}" style="color:var(--accent);">view parent →</a></div>
+      <div class="val" style="font-size:12.5px;"><a href="{{ root }}/run/{{ run.parent_run_id }}" style="color:var(--accent);font-weight:500;text-decoration:none;">view parent &rarr;</a></div>
     </div>
     {% endif %}
   </div>
 
   {% if run.error %}
-  <div class="card" style="border-color:rgba(255,107,107,0.3);">
+  <div class="card" style="border-color:rgba(212,91,91,0.2);">
     <div class="card-header">
       <h2 style="color:var(--red);">Error</h2>
     </div>
-    <div style="padding:16px 20px;">
+    <div style="padding:16px 22px;">
       <div class="pre-wrap">{{ run.error }}</div>
     </div>
   </div>
@@ -93,8 +93,8 @@
         {% for h in handoffs %}
         <tr>
           <td>{{ h.from_agent }}</td>
-          <td>→ {{ h.to_agent }}</td>
-          <td style="font-size:12px;color:var(--text-dim);">{{ h.timestamp[:19] if h.timestamp else "" }}</td>
+          <td>&rarr; {{ h.to_agent }}</td>
+          <td style="font-size:12.5px;color:var(--text-dim);">{{ h.timestamp[:19] if h.timestamp else "" }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -113,8 +113,8 @@
         {% for tc in tool_calls %}
         <tr>
           <td><strong>{{ tc.tool_name }}</strong></td>
-          <td style="font-size:12px;color:var(--text-dim);max-width:300px;overflow:hidden;text-overflow:ellipsis;">{{ tc.arguments[:200] }}</td>
-          <td style="font-size:12px;color:var(--text-dim);max-width:300px;overflow:hidden;text-overflow:ellipsis;">{{ tc.result[:200] if tc.result else "" }}</td>
+          <td style="font-size:12.5px;color:var(--text-dim);max-width:300px;overflow:hidden;text-overflow:ellipsis;">{{ tc.arguments[:200] }}</td>
+          <td style="font-size:12.5px;color:var(--text-dim);max-width:300px;overflow:hidden;text-overflow:ellipsis;">{{ tc.result[:200] if tc.result else "" }}</td>
           <td>{{ "{:,.0f}".format(tc.latency_ms) }}ms</td>
         </tr>
         {% endfor %}
@@ -134,13 +134,13 @@
         {% for lc in llm_calls %}
         <tr>
           <td>{{ loop.index }}</td>
-          <td style="font-size:12px;color:var(--text-dim);">{{ lc.model[:40] }}</td>
+          <td style="font-size:12.5px;color:var(--text-dim);">{{ lc.model[:40] }}</td>
           <td>{{ "{:,.0f}".format(lc.input_tokens) }}</td>
           <td>{{ "{:,.0f}".format(lc.output_tokens) }}</td>
           <td>{{ "{:,.0f}".format(lc.total_tokens) }}</td>
-          <td style="font-size:12px;">${{ "{:,.6f}".format(lc.input_cost) }}</td>
-          <td style="font-size:12px;">${{ "{:,.6f}".format(lc.output_cost) }}</td>
-          <td style="font-size:12px;">${{ "{:,.6f}".format(lc.total_cost) }}</td>
+          <td style="font-size:12.5px;">${{ "{:,.6f}".format(lc.input_cost) }}</td>
+          <td style="font-size:12.5px;">${{ "{:,.6f}".format(lc.output_cost) }}</td>
+          <td style="font-size:12.5px;">${{ "{:,.6f}".format(lc.total_cost) }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -154,8 +154,8 @@
   </div>
   {% endif %}
 
-  <div style="margin-top:24px;text-align:center;">
-    <a href="{{ root }}/" style="color:var(--accent);font-size:13px;text-decoration:none;">← Back to Dashboard</a>
+  <div style="margin-top:28px;text-align:center;">
+    <a href="{{ root }}/" style="color:var(--accent);font-size:13.5px;text-decoration:none;font-weight:500;">&larr; Back to Dashboard</a>
   </div>
 </div>
 </body>

@@ -9,7 +9,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>Model <span>Pricing</span></h1>
+    <h1><span>✦</span> Model Pricing</h1>
     <nav>
       <a href="{{ root }}/">Dashboard</a>
       <a href="{{ root }}/runs">Runs</a>
@@ -17,9 +17,9 @@
     </nav>
   </header>
 
-  <p style="color:var(--text-dim);font-size:13px;margin-bottom:16px;">
+  <p style="color:var(--text-dim);font-size:13.5px;margin-bottom:20px;line-height:1.6;">
     Pricing is per token (USD). Overrides are saved to the database.
-    Models used in runs without pricing appear as "Unpriced".
+    Models used in runs without pricing appear as <strong>Unpriced</strong>.
   </p>
 
   <div class="card">
@@ -36,7 +36,7 @@
       <tbody>
         {% for m in pricing %}
         <tr class="pricing-row" data-model="{{ m.model_name }}">
-          <td><code>{{ m.model_name }}</code></td>
+          <td><code style="font-size:12.5px;">{{ m.model_name }}</code></td>
           <td>
             <input type="text" class="price-input pi-input" name="input_price" value="{{ "%.9f"|format(m.input_price) }}" step="any">
           </td>
@@ -45,13 +45,13 @@
           </td>
           <td>
             {% if m.source == "built-in" %}
-              <span class="badge" style="background:rgba(108,92,231,0.12);color:var(--accent);">Built-in</span>
+              <span class="badge" style="background:var(--accent-light);color:var(--accent);">Built-in</span>
             {% elif m.source == "override" %}
-              <span class="badge" style="background:rgba(0,206,201,0.12);color:var(--green);">Override</span>
+              <span class="badge" style="background:var(--green-light);color:var(--green);">Override</span>
             {% elif m.source == "custom" %}
-              <span class="badge" style="background:rgba(253,203,110,0.12);color:var(--amber);">Custom</span>
+              <span class="badge" style="background:var(--amber-light);color:var(--amber);">Custom</span>
             {% else %}
-              <span class="badge" style="background:rgba(255,107,107,0.12);color:var(--red);">Unpriced</span>
+              <span class="badge" style="background:var(--red-light);color:var(--red);">Unpriced</span>
             {% endif %}
           </td>
           <td>
@@ -63,33 +63,33 @@
         </tr>
         {% endfor %}
         {% if not pricing %}
-        <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:40px;">No pricing data yet.</td></tr>
+        <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:48px;">No pricing data yet.</td></tr>
         {% endif %}
       </tbody>
     </table>
   </div>
 
-  <div class="card" style="padding:20px;">
-    <h3 style="font-size:14px;margin-bottom:12px;">Add Model</h3>
-    <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+  <div class="card" style="padding:20px 22px;">
+    <h3 style="font-size:13.5px;font-weight:600;margin-bottom:14px;">Add Model</h3>
+    <div style="display:flex;gap:14px;align-items:end;flex-wrap:wrap;">
       <div>
-        <div class="label" style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Model Name</div>
+        <div class="label" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);margin-bottom:5px;">Model Name</div>
         <input type="text" id="new-model" class="price-input" placeholder="e.g. gpt-4o" style="width:220px;">
       </div>
       <div>
-        <div class="label" style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Input Price</div>
-        <input type="text" id="new-input" class="price-input" placeholder="0.00000250" style="width:120px;">
+        <div class="label" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);margin-bottom:5px;">Input Price</div>
+        <input type="text" id="new-input" class="price-input" placeholder="0.00000250" style="width:130px;">
       </div>
       <div>
-        <div class="label" style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">Output Price</div>
-        <input type="text" id="new-output" class="price-input" placeholder="0.00001000" style="width:120px;">
+        <div class="label" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);margin-bottom:5px;">Output Price</div>
+        <input type="text" id="new-output" class="price-input" placeholder="0.00001000" style="width:130px;">
       </div>
-      <button class="btn btn-save" id="btn-add-model">Add</button>
+      <button class="btn btn-save" id="btn-add-model">Add Model</button>
     </div>
   </div>
 
-  <div style="margin-top:24px;text-align:center;">
-    <a href="{{ root }}/" style="color:var(--accent);font-size:13px;text-decoration:none;">← Back to Dashboard</a>
+  <div style="margin-top:28px;text-align:center;">
+    <a href="{{ root }}/" style="color:var(--accent);font-size:13.5px;text-decoration:none;font-weight:500;">&larr; Back to Dashboard</a>
   </div>
 </div>
 

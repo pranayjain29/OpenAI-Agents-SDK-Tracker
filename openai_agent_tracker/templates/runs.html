@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>All Runs — Agent Tracker</title>
+<title>Runs — Agent Tracker</title>
 <link rel="stylesheet" href="{{ root }}/static/style.css">
 </head>
 <body>
 <div class="app">
   <header>
-    <h1>All <span>Runs</span></h1>
+    <h1><span>✦</span> All Runs</h1>
     <nav>
       <a href="{{ root }}/">Dashboard</a>
       <a href="{{ root }}/runs" class="active">Runs</a>
@@ -25,7 +25,7 @@
         <option value="{{ a }}" {% if selected_agent == a %}selected{% endif %}>{{ a }}</option>
         {% endfor %}
       </select>
-      <span style="font-size:12px;color:var(--text-dim);">{{ total_runs }} total</span>
+      <span style="font-size:12.5px;color:var(--text-dim);font-weight:500;">{{ total_runs }} total</span>
     </form>
   </div>
 
@@ -48,14 +48,14 @@
         {% for run in runs %}
         <tr>
           <td><a href="{{ root }}/run/{{ run.id }}">{{ run.agent_name }}</a></td>
-          <td style="font-size:12px;color:var(--text-dim);">{{ run.model[:30] }}</td>
+          <td style="font-size:12.5px;color:var(--text-dim);">{{ run.model[:30] }}</td>
           <td>{{ "{:,.0f}".format(run.total_tokens) }}</td>
           <td>${{ "{:,.4f}".format(run.total_cost) }}</td>
           <td>{{ "{:,.0f}".format(run.latency_ms) }}ms</td>
           <td>{{ run.turn_count }}</td>
           <td>{% if run.error %}<span class="badge err">Error</span>{% else %}<span class="badge ok">OK</span>{% endif %}</td>
-          <td style="font-size:12px;color:var(--text-dim);">{{ run.started_at[:19] if run.started_at else "" }}</td>
-          <td><a href="{{ root }}/run/{{ run.id }}" style="font-size:12px;color:var(--accent);">view →</a></td>
+          <td style="font-size:12.5px;color:var(--text-dim);">{{ run.started_at[:19] if run.started_at else "" }}</td>
+          <td><a href="{{ root }}/run/{{ run.id }}" style="font-size:12.5px;color:var(--accent);font-weight:500;text-decoration:none;">view &rarr;</a></td>
         </tr>
         {% endfor %}
         {% if not runs %}
@@ -68,21 +68,21 @@
   {% if total_pages > 1 %}
   <div class="pagination">
     {% if page > 1 %}
-    <a href="?page={{ page - 1 }}{% if selected_agent %}&agent={{ selected_agent }}{% endif %}">← Prev</a>
+    <a href="?page={{ page - 1 }}{% if selected_agent %}&agent={{ selected_agent }}{% endif %}">&larr; Prev</a>
     {% else %}
-    <span class="disabled">← Prev</span>
+    <span class="disabled">&larr; Prev</span>
     {% endif %}
     <span class="current">{{ page }}/{{ total_pages }}</span>
     {% if page < total_pages %}
-    <a href="?page={{ page + 1 }}{% if selected_agent %}&agent={{ selected_agent }}{% endif %}">Next →</a>
+    <a href="?page={{ page + 1 }}{% if selected_agent %}&agent={{ selected_agent }}{% endif %}">Next &rarr;</a>
     {% else %}
-    <span class="disabled">Next →</span>
+    <span class="disabled">Next &rarr;</span>
     {% endif %}
   </div>
   {% endif %}
 
-  <div style="margin-top:24px;text-align:center;">
-    <a href="{{ root }}/" style="color:var(--accent);font-size:13px;text-decoration:none;">← Back to Dashboard</a>
+  <div style="margin-top:28px;text-align:center;">
+    <a href="{{ root }}/" style="color:var(--accent);font-size:13.5px;text-decoration:none;font-weight:500;">&larr; Back to Dashboard</a>
   </div>
 </div>
 </body>
