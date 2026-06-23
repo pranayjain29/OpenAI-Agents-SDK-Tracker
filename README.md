@@ -2,6 +2,38 @@
 
 Self-contained agent observability for the [OpenAI Agents SDK](https://github.com/openai/openai-agents-python) — no external services, no cloud vendor lock-in. Drop it into any project and get a real-time dashboard with run history, token usage, cost, latency, tool calls, and handoff traces.
 
+```text
+┌────────────────────────────────────────────────────────────┐
+│                    your code                                │
+│  tracker = AgentTracker()                                  │
+│  await Runner.run(agent, input, hooks=tracker.hooks)      │
+└─────────────────────┬──────────────────────────────────────┘
+                      │ lifecycle events
+                      ▼
+┌────────────────────────────────────────────────────────────┐
+│  openai_agent_tracker/  │  hooks.py  │  TrackingHooks      │
+│                         │  on_agent_start/end → AgentRun   │
+│                         │  on_llm_start/end   → LLMCall    │
+│                         │  on_tool_start/end  → ToolCall   │
+│                         │  on_handoff         → Handoff    │
+└─────────────────────────┴────────────────┬─────────────────┘
+                                           │ record_*()
+                                           ▼
+┌────────────────────────────────────────────────────────────┐
+│  store.py  │  TrackerStore (interface)                     │
+│             │  SQLiteStore (impl) — 5 tables, auto-migrate │
+│             │  get_stats(), get_agents(), get_runs() ...   │
+└─────────────────────────┬──────────────────────────────────┘
+                          ▲
+                          │ queries
+┌────────────────────────────────────────────────────────────┐
+│  dashboard.py  │  FastAPI app served at / or /tracking     │
+│                  │  Chart.js graphs, paginated tables      │
+│                  │  Pricing UI, cost recalculation         │
+│                  │  Runs standalone OR mounted in your app │
+└────────────────────────────────────────────────────────────┘
+```
+
 ## Quick start
 
 ```bash
@@ -80,6 +112,15 @@ Add more in `openai_agent_tracker/models.py` → `MODEL_PRICING` dict.
 | `openai_agent_tracker/dashboard.py` | FastAPI app with all routes |
 | `openai_agent_tracker/templates/` | 4 Jinja2 templates |
 | `openai_agent_tracker/static/style.css` | Dashboard styling |
+
+## Key design decisions
+
+- **`RunHooksBase` over monkey-patching** — the SDK provides clean lifecycle hooks. No fragile internals to patch.
+- **Sync SQLite, not async** — writes are fast local inserts. Blocking thread pool handles them fine. Zero extra dependencies.
+- **`TrackerStore` interface** — swap `SQLiteStore` for `PostgresStore` later without changing hooks or dashboard.
+- **Cost columns via `ALTER TABLE` migration** — existing `tracking.db` files from before costs were added auto-upgrade on next startup.
+- **`root_path` in templates** — the dashboard works both standalone (`/`) and mounted at a prefix (`/tracking`) because every link uses `{{ root }}` derived from `request.scope.root_path`.
+- **Pricing overrides in SQLite** — no JSON files or config changes needed. Update prices from the dashboard UI, and all stored costs are recalculated automatically.
 
 ## Deployment (Railway Volume)
 
